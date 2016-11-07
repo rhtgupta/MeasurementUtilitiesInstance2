@@ -21,6 +21,8 @@ public class InstanceTwoController {
 		totalRequestCountMap = instance.getMap("requestCount");
 	}
 
+	
+	
 	@RequestMapping("/getUser")
 	public User test(
 			@RequestParam(value = "name", defaultValue = "Instance2") String name) {
