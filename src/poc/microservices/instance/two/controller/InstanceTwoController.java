@@ -1,40 +1,83 @@
 package poc.microservices.instance.two.controller;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.Map;
 
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.bind.annotation.RestController;
+
+import poc.microservices.instance.two.dto.User;
 
 import com.hazelcast.core.Hazelcast;
 import com.hazelcast.core.HazelcastInstance;
 
-import poc.microservices.instance.two.dto.User;
-
 @RestController
 public class InstanceTwoController {
 
-	private Map<String, Integer> totalRequestCountMap;
+	private Map<String, Double> cachedConversion;
 
 	public InstanceTwoController() {
 		HazelcastInstance instance = Hazelcast.newHazelcastInstance();
-		totalRequestCountMap = instance.getMap("requestCount");
+		cachedConversion = instance.getMap("cachedConversion");
 	}
 
-	
-	
-	@RequestMapping("/getUser")
-	public User test(
-			@RequestParam(value = "name", defaultValue = "Instance2") String name) {
-		System.out.println("22222222222222222222222222222");
-		Integer count = totalRequestCountMap.get("user");
-		if (count == null) {
-			totalRequestCountMap.put("user", 0);
-		} else {
-			totalRequestCountMap.put("user", count + 1);
+	@RequestMapping(value = "/getUserConversionResult/{convertFromTextField}/{convertFrom}/{convertTo}", produces = "application/json")
+	public @ResponseBody double getUserConversionResult(
+			@PathVariable(value = "convertFromTextField") String convertFromTextFieldParam,
+			@PathVariable(value = "convertFrom") String convertFrom,
+			@PathVariable(value = "convertTo") String convertTo) {
+		String conversionKey = convertFrom + convertTo;
+		String cacheConversionKey = convertFromTextFieldParam + conversionKey;
+		double result = 0;
+		System.out.println("2222222222222222222222222 "
+				+ convertFromTextFieldParam);
+
+		double convertFromTextField = Double.valueOf(convertFromTextFieldParam);
+
+		if (convertFrom.equalsIgnoreCase(convertTo))
+			return convertFromTextField;
+
+		if (cachedConversion.get(cacheConversionKey) != null) {
+			System.out.println("Server 2 from cache");
+			return cachedConversion.get(cacheConversionKey);
 		}
-//		System.out.println("Total nos. of rwquest :"
-//				+ totalRequestCountMap.get("user"));
-		return new User(22222, name);
+
+		switch (conversionKey) {
+		case "inchfeet": {
+			result = convertFromTextField * 0.083;
+
+			break;
+		}
+		case "inchmeter": {
+			result = convertFromTextField * 0.025;
+			break;
+		}
+		case "feetmeter": {
+			result = convertFromTextField * 0.304;
+			break;
+		}
+		case "feetinch": {
+			result = convertFromTextField * 12;
+			break;
+		}
+		case "meterfeet": {
+			result = convertFromTextField * 3.280;
+			break;
+		}
+		case "meterinch": {
+			result = convertFromTextField * 39.370;
+			break;
+		}
+		}
+		double calculatedResult = new BigDecimal(result).setScale(2,
+				RoundingMode.HALF_UP).doubleValue();
+		cachedConversion.put(cacheConversionKey, calculatedResult);
+		System.out.println("Server 2 Not in cache");
+		return calculatedResult;
 	}
+
 }
